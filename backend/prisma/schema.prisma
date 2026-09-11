@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Neon's pooled connection (DATABASE_URL, hostname has "-pooler") can't run
+  // schema migrations. DIRECT_URL is the same credentials against the
+  // non-pooled hostname, used only by the Prisma CLI for migrate/introspect.
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  name          String?
+  timezone      String   @default("UTC")
+  stepGoal      Int      @default(8000)
+  notifyTime    String   @default("18:00")
+  notifyChannel String   @default("email")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  garminConnection GarminConnection?
+  dailySummaries   DailyActivitySummary[]
+  activities       Activity[]
+  healthMetrics    HealthMetric[]
+  notes            HealthNote[]
+  todos            Todo[]
+  notificationLogs NotificationLog[]
+}
+
+model GarminConnection {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id])
+  garminUserId   String?
+  accessToken    String?
+  refreshToken   String?
+  tokenExpiresAt DateTime?
+  scope          String?
+  connectedAt    DateTime  @default(now())
+  lastSyncedAt   DateTime?
+  isMock         Boolean   @default(true)
+}
+
+model DailyActivitySummary {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  date           String
+  steps          Int      @default(0)
+  distanceMeters Float    @default(0)
+  activeCalories Int      @default(0)
+  floorsClimbed  Int      @default(0)
+  source         String   @default("mock")
+  syncedAt       DateTime @default(now())
+
+  @@unique([userId, date])
+}
+
+model Activity {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+  garminActivityId String?  @unique
+  type             String
+  startTime        DateTime
+  durationSeconds  Int
+  distanceMeters   Float    @default(0)
+  calories         Int      @default(0)
+  avgHeartRate     Int?
+  steps            Int      @default(0)
+  createdAt        DateTime @default(now())
+}
+
+model HealthMetric {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  metricType String
+  value      Float
+  unit       String
+  recordedAt DateTime
+  source     String   @default("manual")
+  createdAt  DateTime @default(now())
+}
+
+model HealthNote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  noteText  String
+  mood      String?
+  tags      String?
+  createdAt DateTime @default(now())
+}
+
+model Todo {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  title       String
+  dueAt       DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model NotificationLog {
+  id      String   @id @default(cuid())
+  userId  String
+  user    User     @relation(fields: [userId], references: [id])
+  date    String
+  type    String
+  channel String
+  sentAt  DateTime @default(now())
+
+  @@unique([userId, date, type])
+}

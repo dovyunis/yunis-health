@@ -1,0 +1,50 @@
+# Render Blueprint — deploys both services from this repo in one step.
+# In the Render dashboard: New -> Blueprint -> connect this GitHub repo.
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: yunis-health-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate && npx prisma migrate deploy && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: DATABASE_URL
+        sync: false # paste your Neon POOLED connection string (hostname has "-pooler")
+      - key: DIRECT_URL
+        sync: false # same credentials, Neon's non-pooled hostname (no "-pooler") — needed for migrate deploy
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: CLIENT_ORIGIN
+        sync: false # set to your frontend's Render URL, e.g. https://yunis-health-frontend.onrender.com
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        value: "Yunis Health <no-reply@yunis-health.local>"
+
+  - type: web
+    name: yunis-health-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false # set to your backend's Render URL + /api, e.g. https://yunis-health-backend.onrender.com/api
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
